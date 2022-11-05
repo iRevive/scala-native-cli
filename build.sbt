@@ -3,6 +3,7 @@ ThisBuild / scalaVersion := "3.2.0"
 ThisBuild / githubWorkflowOSes           := Seq("ubuntu-latest", "macos-latest")
 ThisBuild / githubWorkflowTargetBranches := Seq("main")
 ThisBuild / githubWorkflowTargetTags    ++= Seq("v*")
+ThisBuild / githubWorkflowPublish        := Nil
 
 ThisBuild / githubWorkflowBuildPostamble ++= Seq(
   WorkflowStep.Sbt(
