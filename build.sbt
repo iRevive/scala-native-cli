@@ -6,7 +6,7 @@ ThisBuild / githubWorkflowTargetTags    ++= Seq("v*")
 
 ThisBuild / githubWorkflowBuildPostamble ++= Seq(
   WorkflowStep.Sbt(
-    List("cliNative/generateNativeBinary"),
+    List("generateNativeBinary"),
     name = Some("Generate native binary"),
     cond = Some("startsWith(github.ref, 'refs/tags/v')")
   ),
@@ -36,11 +36,15 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
 
 ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 
+lazy val root = project
+  .in(file("."))
+  .aggregate(cli.jvm, cli.native)
+  .settings(name := "native-cli")
+  .settings(generateBinarySettings)
 
 lazy val cli = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Pure)
-  .in(file("."))
-  .nativeSettings(generateBinarySettings)
+  .in(file("./modules/cli"))
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect"    % "3.3.14",
@@ -53,7 +57,7 @@ lazy val generateBinarySettings = {
 
   Seq(
     generateNativeBinary := {
-      val binary = (Compile / nativeLink).value
+      val binary = (cli.native / Compile / nativeLink).value
       val output = file("./native-cli")
 
       IO.delete(output)
