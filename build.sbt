@@ -1,39 +1,44 @@
 ThisBuild / scalaVersion := "3.2.0"
 
-ThisBuild / githubWorkflowOSes           := Seq("ubuntu-latest", "macos-latest")
+lazy val binariesMatrix = Map(
+  "ubuntu-latest" -> "native-cli-linux-x84_64",
+  "macos-latest"  -> "native-cli-macos-x86_64"
+)
+
+ThisBuild / githubWorkflowOSes           := binariesMatrix.keys.toSeq
 ThisBuild / githubWorkflowTargetBranches := Seq("main")
 ThisBuild / githubWorkflowTargetTags    ++= Seq("v*")
 ThisBuild / githubWorkflowPublish        := Nil
 
-ThisBuild / githubWorkflowBuildPostamble ++= Seq(
-  WorkflowStep.Sbt(
+
+ThisBuild / githubWorkflowBuildPostamble ++= {
+  val tagsOnly = "startsWith(github.ref, 'refs/tags/v')"
+
+  val generate = WorkflowStep.Sbt(
     List("generateNativeBinary"),
     name = Some("Generate native binary"),
-    cond = Some("startsWith(github.ref, 'refs/tags/v')")
-  ),
-  WorkflowStep.Run(
-    List("mv native-cli native-cli-linux-x86_64"),
-    name = Some("Rename Linux binary"),
-    cond = Some("startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'")
-  ),
-  WorkflowStep.Use(
-    UseRef.Public("softprops", "action-gh-release", "v1"),
-    name = Some("Release Linux"),
-    params = Map("files" -> "./native-cli-linux-x86_64"),
-    cond = Some("startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'")
-  ),
-  WorkflowStep.Run(
-    List("mv native-cli native-cli-macos-x86_64"),
-    name = Some("Rename MacOS binary"),
-    cond = Some("startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'")
-  ),
-  WorkflowStep.Use(
-    UseRef.Public("softprops", "action-gh-release", "v1"),
-    name = Some("Release MacOS"),
-    params = Map("files" -> "./native-cli-macos-x86_64"),
-    cond = Some("startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'")
+    cond = Some(tagsOnly)
   )
-)
+
+  val uploads = binariesMatrix.flatMap { case (os, binaryName) =>
+    val condition = s"$tagsOnly && matrix.os == '$os'"
+    Seq(
+      WorkflowStep.Run(
+        List(s"mv native-cli $binaryName"),
+	name = Some(s"Rename $os binary"),
+	cond = Some(condition)
+      ),
+      WorkflowStep.Use(
+        UseRef.Public("softprops", "action-gh-release", "v1"),
+        name   = Some(s"Upload $binaryName"),
+        params = Map("files" -> binaryName),
+	cond   = Some(condition)
+      )
+    )
+  }
+
+  generate +: uploads.toSeq
+}
 
 ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 
