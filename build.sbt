@@ -5,10 +5,12 @@ lazy val binariesMatrix = Map(
   "macos-latest"  -> "native-cli-macos-x86_64"
 )
 
-ThisBuild / githubWorkflowOSes           := binariesMatrix.keys.toSeq
-ThisBuild / githubWorkflowTargetBranches := Seq("main")
-ThisBuild / githubWorkflowTargetTags    ++= Seq("v*")
-ThisBuild / githubWorkflowPublish        := Nil
+ThisBuild / githubWorkflowOSes                  := binariesMatrix.keys.toSeq
+ThisBuild / githubWorkflowTargetBranches        := Seq("main")
+ThisBuild / githubWorkflowTargetTags           ++= Seq("v*")
+ThisBuild / githubWorkflowPublish               := Nil
+ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
+
 
 ThisBuild / githubWorkflowBuildPostamble ++= {
   val tagsOnly = "startsWith(github.ref, 'refs/tags/v')"
