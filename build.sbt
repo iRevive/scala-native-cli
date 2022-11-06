@@ -10,7 +10,6 @@ ThisBuild / githubWorkflowTargetBranches := Seq("main")
 ThisBuild / githubWorkflowTargetTags    ++= Seq("v*")
 ThisBuild / githubWorkflowPublish        := Nil
 
-
 ThisBuild / githubWorkflowBuildPostamble ++= {
   val tagsOnly = "startsWith(github.ref, 'refs/tags/v')"
 
@@ -39,8 +38,6 @@ ThisBuild / githubWorkflowBuildPostamble ++= {
 
   generate +: uploads.toSeq
 }
-
-ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 
 lazy val root = project
   .in(file("."))
