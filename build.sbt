@@ -12,22 +12,14 @@ ThisBuild / githubWorkflowPublish               := Nil
 ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 
 
-ThisBuild / githubWorkflowBuildPostamble ++= {
-  val tagsOnly = "startsWith(github.ref, 'refs/tags/v')"
-
-  val generate = WorkflowStep.Sbt(
-    List("generateNativeBinary"),
-    name = Some("Generate native binary"),
-    cond = Some(tagsOnly)
-  )
-
-  val uploads = binariesMatrix.flatMap { case (os, binaryName) =>
-    val condition = s"$tagsOnly && matrix.os == '$os'"
+ThisBuild / githubWorkflowBuildPostamble ++=
+  binariesMatrix.toSeq.flatMap { case (os, binaryName) =>
+    val condition = s"startsWith(github.ref, 'refs/tags/v') && matrix.os == '$os'"
     Seq(
-      WorkflowStep.Run(
-        List(s"mv native-cli $binaryName"),
-	name = Some(s"Rename $os binary"),
-	cond = Some(condition)
+      WorkflowStep.Sbt(
+        List(s"generateNativeBinary ./$binaryName"),
+        name = Some(s"Generate $os native binary"),
+        cond = Some(condition)
       ),
       WorkflowStep.Use(
         UseRef.Public("softprops", "action-gh-release", "v1"),
@@ -37,9 +29,6 @@ ThisBuild / githubWorkflowBuildPostamble ++= {
       )
     )
   }
-
-  generate +: uploads.toSeq
-}
 
 lazy val root = project
   .in(file("."))
@@ -58,13 +47,16 @@ lazy val cli = crossProject(JVMPlatform, NativePlatform)
   )  
 
 lazy val generateBinarySettings = {
-  val generateNativeBinary = taskKey[Unit]("Generate native binary")
+  val generateNativeBinary = inputKey[Unit]("Generate native binary")
 
   Seq(
     generateNativeBinary := {
+      val log    = streams.value.log
+      val args   = sbt.complete.Parsers.spaceDelimited("<arg>").parsed
       val binary = (cli.native / Compile / nativeLink).value
-      val output = file("./native-cli")
+      val output = file(args.headOption.getOrElse("./native-cli"))
 
+      log.info(s"Writing binary to $output")
       IO.delete(output)
       IO.copyFile(binary, output)
     }
